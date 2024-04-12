@@ -36,7 +36,7 @@ def get_content(html, page):
 
     cars_info = []
 
-    print('Обратка страницы ' + str(page) + '...')
+    print('Обработка страницы ' + str(page) + '...')
 
     for i in range(len(links)):
         car_html = get_html(links[i])
@@ -97,7 +97,7 @@ def get_content(html, page):
 
     print('Выгрузка данных страницы ' + str(page))
 
-    with open('cars.csv', 'a') as csvfile:
+    with open('../data/cars.csv', 'a') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=field_names)
         writer.writerows(cars_info)
 
@@ -109,8 +109,8 @@ def parse(csv_file):
         writer.writeheader()
     csvfile.close()
 
-    count = int(input('Введите количество страниц (на каждой странице по 15 объявлений): '))
-
+    # count = int(input('Введите количество страниц (на каждой странице по 15 объявлений): '))
+    count = 1
     for i in range(1, count + 1):
         url = 'https://spb.drom.ru/all/page{}/?unsold=1'.format(str(i))
         html = get_html(url)
@@ -119,3 +119,9 @@ def parse(csv_file):
         else:
             print('Error')
 
+
+csv_file = '/data/cars.csv'
+
+if __name__ == "__main__":
+    parse(csv_file)
+    print("Парсинг в файл закончен")

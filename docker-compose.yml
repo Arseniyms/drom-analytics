@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+
+  db:
+    image: mongo
+    container_name: mongo
+    restart: always
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_DATABASE: auto
+    volumes:
+      - ./db-data/mongo/:/data/db
+
+  drom_parser:
+    image: parser
+    volumes:
+      - ./data:/data
+    container_name: drom_parser
+    command: python ./parser/parser.py
+    network_mode: host
+    build:
+      context: parser
+      dockerfile: Dockerfile
+
+  mongobase:
+    image: mongobase
+    volumes:
+      - ./data:/data
+    container_name: mongobase
+    command: python ./mongobase/database.py
+    depends_on:
+      - db
+    network_mode: host
+    build:
+      context: mongobase
+      dockerfile: Dockerfile
+
+
+  analytics:
+    image: analytics
+    container_name: analytics
+    command: python ./analytics/drom_analytics.py
+    depends_on:
+      - db
+    network_mode: host
+    build:
+      context: analytics
+      dockerfile: Dockerfile
