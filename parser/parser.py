@@ -2,8 +2,10 @@ import requests
 from bs4 import BeautifulSoup
 import csv
 
-field_names = ['title', 'year', 'price', 'engine', 'power', 'transmission', 'gear', 'body_type', 'color',
+field_names = ['company', 'mark' , 'city', 'year', 'price', 'engine', 'power', 'transmission', 'gear', 'body_type', 'color',
                        'mileage', 'wheel', 'generation', 'equipment', 'public_date', 'views', 'description']
+
+csv_file = '/data/cars.csv'
 
 def get_html(url, params=None):
     r = requests.get(url, params=params)
@@ -41,13 +43,15 @@ def get_content(html, page):
     for i in range(len(links)):
         car_html = get_html(links[i])
         if car_html.status_code == 200:
-            description = get_data(car_html.text, 'span', 'css-1kb7l9z e162wx9x0')
-            description = safe_list(description)
+            description = safe_list(get_data(car_html.text, 'span', 'css-1kb7l9z e162wx9x0'))
             description = description.get(1, '').replace('\n', '')
             description = description.replace('\r', '')
-            split_title = titles[i].split(',')
-            title = split_title[0]
-            year = int(split_title[1])
+            split_title = safe_list(titles[i].split(','))
+            title = safe_list(split_title[0].split(' '))
+
+            company = title.get(0, '')
+            mark = title.get(1, '')
+            year = int(split_title.get(1, '0'))
 
             price = get_data(car_html.text, 'div', 'css-eazmxc e162wx9x0')
             price = safe_list(price)
@@ -57,6 +61,12 @@ def get_content(html, page):
             specs_value = get_data(car_html.text, 'td', 'css-1la7f7n ezjvm5n0')
 
             public_date = get_data(car_html.text, 'div', 'css-pxeubi evnwjo70')[0][-10:]
+
+            city = get_data(car_html.text, 'div', 'css-inmjwf e162wx9x0')
+            city = [item for item in city if item.startswith('Город:')]
+            if city:
+                city_name = city[0].split(': ')[1]
+                city = city_name
 
             views = get_data(car_html.text, 'div', 'css-14wh0pm e1lm3vns0')[0]
 
@@ -68,16 +78,20 @@ def get_content(html, page):
             specs = {specs_names[i]: specs_value[i] for i in range(len(specs_names))}
 
             # print(description)
-            # print(title)
+            # print(company)
+            # print(mark)
             # print(year)
             # print(price)
             # print(public_date)
             # print(int(views))
             # print(specs)
+            # print(city)
             # print("*" * 40)
 
             cars_info.append({
-                'title': title,
+                'company': company,
+                'mark': mark,
+                'city': city,
                 'year': year,
                 'price': price,
                 'engine': specs.get('Двигатель'),
@@ -97,14 +111,14 @@ def get_content(html, page):
 
     print('Выгрузка данных страницы ' + str(page))
 
-    with open('../data/cars.csv', 'a') as csvfile:
+    with open(csv_file, 'a') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=field_names)
         writer.writerows(cars_info)
 
     csvfile.close()
 
 def parse(csv_file):
-    with open(csv_file, 'w') as csvfile:
+    with open(csv_file, 'w+') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=field_names)
         writer.writeheader()
     csvfile.close()
@@ -112,15 +126,13 @@ def parse(csv_file):
     # count = int(input('Введите количество страниц (на каждой странице по 15 объявлений): '))
     count = 1
     for i in range(1, count + 1):
-        url = 'https://spb.drom.ru/all/page{}/?unsold=1'.format(str(i))
+        url = 'https://auto.drom.ru/all/page{}/?unsold=1'.format(str(i))
         html = get_html(url)
         if html.status_code == 200:
             get_content(html.text, i)
         else:
             print('Error')
 
-
-csv_file = '/data/cars.csv'
 
 if __name__ == "__main__":
     parse(csv_file)
