@@ -1,17 +1,33 @@
 version: '3.8'
 
 services:
-
-  db:
-    image: mongo
-    container_name: mongo
-    restart: always
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.2
     ports:
-      - 27017:27017
+      - '9200:9200'
     environment:
-      MONGO_INITDB_DATABASE: auto
+      - node.name=elasticsearch
+      - cluster.name=es-docker-cluster
+      - discovery.type=single-node
+      - xpack.security.enabled=false
     volumes:
-      - ./db-data/mongo/:/data/db
+      - /user/share/elasticsearch/data
+    networks:
+      - elastic
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.2
+    container_name: kibana
+    environment:
+      - node.name=kibana
+      - cluster.name=es-docker-cluster
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - elastic
+    depends_on:
+      - elasticsearch
 
   drom_parser:
     image: parser
@@ -24,27 +40,23 @@ services:
       context: parser
       dockerfile: Dockerfile
 
-  mongobase:
-    image: mongobase
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.13.2
+    container_name: logstash
     volumes:
-      - ./data:/data
-    container_name: mongobase
-    command: python ./mongobase/database.py
+      - ./elk/logstash.conf:/usr/share/logstash/logstash.conf
+      - ./data/cars.csv:/usr/share/logstash/data/cars.csv
+    restart: always
     depends_on:
-      - db
-    network_mode: host
-    build:
-      context: mongobase
-      dockerfile: Dockerfile
+      - elasticsearch
+    command: bash -c "logstash-plugin install logstash-output-elasticsearch && bin/logstash -f logstash.conf"
+    networks:
+      - elastic
 
+volumes:
+  data:
+    driver: local
 
-  analytics:
-    image: analytics
-    container_name: analytics
-    command: python ./analytics/drom_analytics.py
-    depends_on:
-      - db
-    network_mode: host
-    build:
-      context: analytics
-      dockerfile: Dockerfile
+networks:
+  elastic:
+    driver: bridge
